@@ -1,0 +1,12 @@
+[package]
+name = "menu_front"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+console_log = "1.0.0"
+log = "0.4.27"
+web-sys = "0.3.77"
+frontend_commons = {path="../frontend_commons"}
+menu_back = {path="../menu_back"}

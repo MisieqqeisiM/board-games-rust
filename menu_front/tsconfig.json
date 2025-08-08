@@ -1,0 +1,15 @@
+{
+    "compilerOptions": {
+        "jsx": "react",
+        "jsxFactory": "JSX",
+        "paths": {
+            "commons/*": [
+                "../frontend_commons/ts/*"
+            ]
+        },
+        "lib": [
+            "ES2016",
+            "DOM"
+        ]
+    }
+}

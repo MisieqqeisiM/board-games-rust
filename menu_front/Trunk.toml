@@ -1,0 +1,10 @@
+[build]
+offline = true
+
+[watch]
+ignore = ["js/"]
+
+[[hooks]]
+stage = "pre_build"
+command = "esbuild"
+command_arguments = ["main.ts", "--bundle", "--outdir=js"]
