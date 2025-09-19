@@ -1,0 +1,19 @@
+services:
+  nginx:
+    tty: true
+    image: nginx:1.29.0
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - 80:80
+
+  backend:
+    tty: true
+    build:
+      context: ../..
+      dockerfile: ./docker/dev/Dockerfile
+    volumes:
+      - ../..:/usr/src/app
+      - /usr/src/app/target
+      - /usr/src/app/menu_front/js
+      - /usr/src/app/menu_front/dist

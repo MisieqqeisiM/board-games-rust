@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use frontend_commons::{
     command::{Command, CommandConsumerGenerator},
     socket::{Socket, SocketCommand},

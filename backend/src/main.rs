@@ -39,6 +39,6 @@ async fn main() {
         .route("/socket", get(ws))
         .fallback_service(ServeDir::new("../menu_front/dist"))
         .with_state(Arc::new(Mutex::new(state)));
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }

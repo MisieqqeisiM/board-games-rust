@@ -2,6 +2,7 @@
 offline = true
 
 [watch]
+watch = ["../frontend_commons", "."]
 ignore = ["js/"]
 
 [[hooks]]
