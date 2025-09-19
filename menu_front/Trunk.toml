@@ -1,5 +1,6 @@
 [build]
 offline = true
+public_url = "/menu"
 
 [watch]
 watch = ["../frontend_commons", "."]

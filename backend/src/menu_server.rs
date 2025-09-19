@@ -1,12 +1,9 @@
-use std::{collections::HashMap, pin::Pin};
+use std::collections::HashMap;
 
-use futures_util::Future;
 use menu_back::{ToClient, ToServer};
 use tracing::info;
 
 use crate::socket_endpoint::{Client, SocketHandler};
-
-type AsyncFnOnce = Box<dyn (FnOnce() -> Pin<Box<dyn Future<Output = ()> + Send>>) + Send>;
 
 pub struct Menu {
     clients: HashMap<u64, Client<ToClient>>,
@@ -27,7 +24,7 @@ impl Menu {
 }
 
 impl SocketHandler<ToClient, ToServer> for Menu {
-    async fn on_connect(&mut self, mut client: Client<ToClient>) {
+    async fn on_connect(&mut self, client: Client<ToClient>) {
         let id = client.get_id();
         self.clients.insert(id, client);
         self.broadcast(ToClient::Ping).await;
