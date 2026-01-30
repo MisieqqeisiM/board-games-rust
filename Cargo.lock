@@ -121,6 +121,7 @@ dependencies = [
  "axum",
  "axum-extra",
  "axum-macros",
+ "backend_commons",
  "futures-util",
  "hmac",
  "jwt",
@@ -129,10 +130,18 @@ dependencies = [
  "serde",
  "serde_cbor",
  "sha2",
+ "test_back",
  "tokio",
  "tower-http",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "backend_commons"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -290,6 +299,7 @@ dependencies = [
 name = "frontend_commons"
 version = "0.1.0"
 dependencies = [
+ "backend_commons",
  "serde",
  "serde_cbor",
  "wasm-bindgen",
@@ -943,6 +953,26 @@ name = "sync_wrapper"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0bf256ce5efdfa370213c1dabab5935a12e49f2c58d15e9eac2870d3b4f27263"
+
+[[package]]
+name = "test_back"
+version = "0.1.0"
+dependencies = [
+ "backend_commons",
+ "serde",
+]
+
+[[package]]
+name = "test_front"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "console_log",
+ "frontend_commons",
+ "log",
+ "test_back",
+ "web-sys",
+]
 
 [[package]]
 name = "thiserror"

@@ -1,15 +1,10 @@
-pub mod server_list;
-
+use backend_commons::client_info::ClientListMessage;
 use serde::{Deserialize, Serialize};
-
-use crate::server_list::ServerListEvent;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum ToClient {
-    ServerListEvent(ServerListEvent),
+    ClientListMessage(ClientListMessage),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum ToServer {
-    Pong,
-}
+pub enum ToServer {}

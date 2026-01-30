@@ -17,3 +17,5 @@ services:
       - /usr/src/app/target
       - /usr/src/app/menu_front/js
       - /usr/src/app/menu_front/dist
+      - /usr/src/app/test_front/js
+      - /usr/src/app/test_front/dist

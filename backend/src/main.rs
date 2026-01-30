@@ -1,82 +1,68 @@
 mod auth;
 mod menu_server;
 mod socket_endpoint;
+mod test_server;
+mod token;
 
-use std::{collections::BTreeMap, error::Error, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use axum::{
-    Form, Router,
-    extract::{Request, State, WebSocketUpgrade},
-    http::{HeaderValue, StatusCode, header::SET_COOKIE},
-    middleware::{Next, from_fn, from_fn_with_state},
-    response::{ErrorResponse, IntoResponse, Redirect, Response},
-    routing::{get, get_service, post},
+    Router,
+    extract::{Path, Request, State, WebSocketUpgrade},
+    middleware::{Next, from_fn_with_state},
+    response::{Redirect, Response},
+    routing::{get, post},
 };
-use axum_extra::extract::{CookieJar, cookie::Cookie};
-use axum_macros::debug_handler;
-use hmac::{Hmac, digest::KeyInit};
-use jwt::{Header, SignWithKey};
 use menu_back::{ToClient, ToServer};
-use serde::{Deserialize, Serialize};
-use sha2::Sha256;
 use tokio::sync::Mutex;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 use tracing::info;
 
 use crate::{
-    auth::{Key, UserData},
-    menu_server::Menu,
+    auth::login,
+    menu_server::{Menu, MenuMessage},
     socket_endpoint::SocketEndpoint,
+    test_server::Test,
+    token::{Key, UserData},
 };
 
 #[derive(Clone)]
 struct ServerState {
     auth_key: Key,
-    menu: Arc<Mutex<SocketEndpoint<ToClient, ToServer>>>,
+    menu: Arc<Mutex<SocketEndpoint<ToClient, ToServer, MenuMessage>>>,
+    test_rooms:
+        Arc<Mutex<HashMap<String, SocketEndpoint<test_back::ToClient, test_back::ToServer, ()>>>>,
 }
 
-async fn ws(ws: WebSocketUpgrade, State(state): State<ServerState>) -> Response {
-    info!("Websocket connection");
-    let menu = state.menu.lock().await;
-    menu.handler(ws)
-}
-
-#[derive(Deserialize)]
-struct Login {
-    username: String,
-}
-
-async fn login(
+async fn ws(
+    ws: WebSocketUpgrade,
+    user_data: UserData,
     State(state): State<ServerState>,
-    jar: CookieJar,
-    Form(user_data): Form<Login>,
-) -> impl IntoResponse {
-    info!("{}", user_data.username);
-    let token = state.auth_key.get_token(UserData {
-        username: user_data.username,
-    });
-    let Ok(token) = token else {
-        return (StatusCode::FORBIDDEN, "Authentication failed").into_response();
-    };
-    let cookie = Cookie::new("auth", token);
-    (jar.add(cookie), Redirect::to("/")).into_response()
-}
-
-async fn auth_middleware(
-    State(state): State<ServerState>,
-    jar: CookieJar,
-    request: Request,
-    next: Next,
 ) -> Response {
-    let Some(token) = jar.get("auth") else {
-        return Redirect::to("/login").into_response();
-    };
-    let Ok(data) = state.auth_key.get_user_data(token.value_trimmed()) else {
-        return Redirect::to("/login").into_response();
-    };
+    info!(
+        "Websocket connection from {} {}",
+        user_data.id, user_data.username
+    );
+    let menu = state.menu.lock().await;
+    menu.handler(ws, user_data)
+}
 
-    info!("{}", data.username);
+async fn test_ws(
+    ws: WebSocketUpgrade,
+    Path(room_id): Path<String>,
+    user_data: UserData,
+    State(state): State<ServerState>,
+) -> Response {
+    let mut rooms = state.test_rooms.lock().await;
+    let menu = state.menu.lock().await;
+    let room = rooms.entry(room_id.clone()).or_insert_with(|| {
+        menu.send_internal_message(MenuMessage::ServerCreated(room_id));
+        SocketEndpoint::new(Test::new())
+    });
+    room.handler(ws, user_data)
+}
 
+async fn auth_middleware(_user_dat: UserData, request: Request, next: Next) -> Response {
     next.run(request).await
 }
 
@@ -89,15 +75,25 @@ async fn main() {
     tracing_subscriber::fmt().init();
     info!("Starting server");
 
+    let test_rooms = Arc::new(Mutex::new(HashMap::new()));
+    let menu = Arc::new(Mutex::new(SocketEndpoint::new(Menu::new())));
+
     let state = ServerState {
-        menu: Arc::new(Mutex::new(SocketEndpoint::new(Menu::new()))),
+        menu,
+        test_rooms,
         auth_key: Key::new("test-key".to_owned()).unwrap(),
     };
 
     let app = Router::new()
         .route("/", get(redirect_to_menu))
-        .route("/socket", get(ws))
         .nest_service("/menu", ServeDir::new("../menu_front/dist"))
+        .route("/menu/socket", get(ws))
+        .nest_service("/test/static", ServeDir::new("../test_front/dist"))
+        .nest_service(
+            "/test/{room_id}",
+            ServeFile::new("../test_front/dist/index.html"),
+        )
+        .route("/test/{room_id}/socket", get(test_ws))
         .route_layer(from_fn_with_state(state.clone(), auth_middleware))
         .nest_service("/login", ServeDir::new("../login/dist"))
         .route("/login_handler", post(login))

@@ -1,48 +1,51 @@
-use hmac::{Hmac, Mac, digest::InvalidLength};
-use jwt::{Error, Header, SignWithKey, Token, VerifyWithKey};
-use serde::{Deserialize, Serialize};
-use sha2::Sha256;
+use axum::{
+    Form,
+    extract::{FromRequestParts, State},
+    http::{StatusCode, request::Parts},
+    response::{IntoResponse, Redirect, Response},
+};
+use axum_extra::extract::{CookieJar, cookie::Cookie};
+use serde::Deserialize;
+use tracing::info;
 
-#[derive(Clone)]
-pub struct Key(Hmac<Sha256>);
+use crate::{ServerState, token::UserData};
 
-#[derive(Debug)]
-pub enum AuthError {
-    KeyError(InvalidLength),
-    SigningError(Error),
-    InvalidToken(Error),
+impl FromRequestParts<ServerState> for UserData {
+    type Rejection = Response;
+
+    async fn from_request_parts(
+        parts: &mut Parts,
+        state: &ServerState,
+    ) -> Result<Self, Self::Rejection> {
+        let jar = CookieJar::from_request_parts(parts, state).await.unwrap();
+        let token = jar
+            .get("auth")
+            .ok_or(Redirect::to("/login").into_response())?;
+        state
+            .auth_key
+            .get_user_data(token.value_trimmed())
+            .map_err(|_| Redirect::to("/login").into_response())
+    }
 }
 
-#[derive(Serialize, Deserialize)]
-struct AuthenticationToken {
-    sub: String,
+#[derive(Deserialize)]
+pub struct Login {
+    username: String,
 }
 
-pub struct UserData {
-    pub username: String,
-}
-
-impl Key {
-    pub fn new(secret: String) -> Result<Self, AuthError> {
-        let internal =
-            Hmac::new_from_slice(secret.as_bytes()).map_err(|e| AuthError::KeyError(e))?;
-        Ok(Key(internal))
-    }
-
-    pub fn get_token(&self, data: UserData) -> Result<String, AuthError> {
-        let claims = AuthenticationToken { sub: data.username };
-        claims
-            .sign_with_key(&self.0)
-            .map_err(|e| AuthError::SigningError(e))
-    }
-
-    pub fn get_user_data(&self, token: &str) -> Result<UserData, AuthError> {
-        let token: Token<Header, AuthenticationToken, _> = token
-            .verify_with_key(&self.0)
-            .map_err(|e| AuthError::InvalidToken(e))?;
-        let claims = token.claims();
-        Ok(UserData {
-            username: claims.sub.to_owned(),
-        })
-    }
+pub async fn login(
+    State(state): State<ServerState>,
+    jar: CookieJar,
+    Form(user_data): Form<Login>,
+) -> impl IntoResponse {
+    info!("{}", user_data.username);
+    let token = state.auth_key.get_token(UserData {
+        username: user_data.username,
+        id: rand::random(),
+    });
+    let Ok(token) = token else {
+        return (StatusCode::FORBIDDEN, "Authentication failed").into_response();
+    };
+    let cookie = Cookie::new("auth", token);
+    (jar.add(cookie), Redirect::to("/")).into_response()
 }

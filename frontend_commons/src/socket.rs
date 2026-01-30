@@ -7,6 +7,8 @@ use crate::command::{Command, CommandConsumer};
 #[derive(Debug)]
 pub enum SocketCommand<ToClient> {
     Data(ToClient),
+    Error,
+    Close,
 }
 
 pub struct Socket<ToClient, ToServer> {
@@ -49,6 +51,14 @@ where
     fn on_data(&mut self, data: Vec<u8>) {
         self.consume(SocketCommand::Data(serde_cbor::from_slice(&data).unwrap()));
     }
+
+    fn on_error(&mut self) {
+        self.consume(SocketCommand::Error);
+    }
+
+    fn on_close(&mut self) {
+        self.consume(SocketCommand::Close);
+    }
 }
 
 mod ts {
@@ -57,6 +67,8 @@ mod ts {
 
     pub trait SocketObserver {
         fn on_data(&mut self, data: Vec<u8>);
+        fn on_error(&mut self);
+        fn on_close(&mut self);
     }
 
     #[wasm_bindgen]
@@ -74,6 +86,12 @@ mod ts {
     impl SocketBackend {
         pub fn on_data(&mut self, data: Uint8Array) {
             self.observer.on_data(data.to_vec());
+        }
+        pub fn on_error(&mut self) {
+            self.observer.on_error();
+        }
+        pub fn on_close(&mut self) {
+            self.observer.on_close();
         }
     }
 
