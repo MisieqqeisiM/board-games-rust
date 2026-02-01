@@ -10,3 +10,5 @@ log = "0.4.27"
 web-sys = "0.3.77"
 frontend_commons = {path="../frontend_commons"}
 test_back = {path="../test_back"}
+wasm-bindgen = "0.2.108"
+image = "0.25.9"

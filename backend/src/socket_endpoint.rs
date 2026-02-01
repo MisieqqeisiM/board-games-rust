@@ -143,7 +143,8 @@ where
 
     pub fn send_internal_message(&self, message: Internal) {
         self.message_sender
-            .send(ServerMessage::InternalMessage(message));
+            .send(ServerMessage::InternalMessage(message))
+            .unwrap();
     }
 
     pub fn handler(&self, ws: WebSocketUpgrade, user_data: UserData) -> Response {
@@ -254,10 +255,10 @@ async fn pass_messages<ToClient, ToServer, Internal>(
         select! {
           Some(message) = channel.recv() => {
             match message {
-                ServerMessage::NewClient(client)=>socket_handler.on_connect(client).await,
-                ServerMessage::Message{client_id,message}=>socket_handler.on_message(client_id,message).await,
+                ServerMessage::NewClient(client) => socket_handler.on_connect(client).await,
+                ServerMessage::Message{client_id,message} => socket_handler.on_message(client_id,message).await,
                 ServerMessage::InternalMessage(internal_message) => socket_handler.on_internal_message(internal_message).await,
-                ServerMessage::Disconnect{client_id}=>socket_handler.on_disconnect(client_id).await,
+                ServerMessage::Disconnect{client_id} => socket_handler.on_disconnect(client_id).await,
                 ServerMessage::Ping { client_id, data } => socket_handler.on_ping(client_id, data).await,
                 ServerMessage::Pong { client_id, timestamp } => socket_handler.on_pong(client_id, timestamp).await,
             };
