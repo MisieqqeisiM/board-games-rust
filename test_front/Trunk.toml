@@ -3,7 +3,7 @@ offline = true
 public_url = "/test/static"
 
 [watch]
-watch = ["../frontend_commons", "."]
+watch = ["../frontend_commons", "../test_back", "."]
 ignore = ["js/"]
 
 [[hooks]]
