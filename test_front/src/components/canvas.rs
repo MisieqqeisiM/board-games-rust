@@ -22,8 +22,8 @@ impl Canvas {
         );
     }
 
-    pub fn push(&mut self, data: Vec<f32>) {
-        self.canvas.push(data);
+    pub fn push(&mut self, group: u32, data: Vec<f32>) {
+        self.canvas.push(group, data);
     }
 
     pub fn draw(&self) {
@@ -32,6 +32,10 @@ impl Canvas {
 
     pub fn set_transform(&mut self, x: f32, y: f32, scale: f32) {
         self.canvas.setTransform(x, y, scale);
+    }
+
+    pub fn create_atlas(&mut self) {
+        self.canvas.createAtlas();
     }
 }
 
@@ -63,6 +67,9 @@ mod ts {
         pub fn setTransform(this: &Canvas, x: f32, y: f32, scale: f32);
 
         #[wasm_bindgen(method)]
-        pub fn push(this: &Canvas, data: Vec<f32>);
+        pub fn createAtlas(this: &Canvas);
+
+        #[wasm_bindgen(method)]
+        pub fn push(this: &Canvas, group: u32, data: Vec<f32>);
     }
 }

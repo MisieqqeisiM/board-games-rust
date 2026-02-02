@@ -27,6 +27,10 @@ export const FRAGMENT_SHADER_SOURCE = `#version 300 es
     uniform sampler2D tex1;
     uniform sampler2D tex2;
     uniform sampler2D tex3;
+    uniform sampler2D tex4;
+    uniform sampler2D tex5;
+    uniform sampler2D tex6;
+    uniform sampler2D tex7;
     void main() {
         if(v_atlas == 0.0) {
             outColor = texture(tex0, v_texCoord);
@@ -36,8 +40,16 @@ export const FRAGMENT_SHADER_SOURCE = `#version 300 es
             outColor = texture(tex2, v_texCoord);
         } else if(v_atlas == 3.0) {
             outColor = texture(tex3, v_texCoord);
+        } else if(v_atlas == 4.0) {
+            outColor = texture(tex4, v_texCoord);
+        } else if(v_atlas == 5.0) {
+            outColor = texture(tex5, v_texCoord);
+        } else if(v_atlas == 6.0) {
+            outColor = texture(tex6, v_texCoord);
+        } else if(v_atlas == 7.0) {
+            outColor = texture(tex7, v_texCoord);
         } else {
-            outColor = vec4(0, 0, 0, 1);
+            outColor = vec4(1, 0, 1, 1);
         }
     }
 `;

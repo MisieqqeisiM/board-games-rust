@@ -7,72 +7,67 @@ pub struct BoundingBox {
     pub y: u32,
     pub width: u32,
     pub height: u32,
+    pub rotated: bool,
 }
 
-enum AtlasImageKind {
-    WIDE,
-    TALL,
-}
+const ATLAS_SIZE: u32 = 2048;
 
+#[derive(Debug)]
 struct SingleAtlas {
     id: u32,
     width: u32,
     row_size: u32,
     row_usage: Vec<u32>,
-    image_kind: AtlasImageKind,
 }
 
 impl SingleAtlas {
-    pub fn new(id: u32, width: u32, rows: u32, image_kind: AtlasImageKind) -> Self {
+    pub fn for_image(id: u32, sample_width: u32, sample_height: u32) -> Self {
+        let mut row_height = 32;
+        while row_height < max(sample_width, sample_height) {
+            row_height *= 2;
+        }
+        let rows = ATLAS_SIZE / row_height;
+        Self::new(id, ATLAS_SIZE, rows)
+    }
+
+    pub fn new(id: u32, width: u32, rows: u32) -> Self {
         Self {
             id,
             width,
             row_size: width / rows,
             row_usage: vec![0; rows as usize],
-            image_kind,
         }
     }
 
     pub fn add_image(&mut self, width: u32, height: u32) -> Option<BoundingBox> {
-        match self.image_kind {
-            AtlasImageKind::WIDE => {
-                if width < height {
-                    return None;
-                }
-            }
-            AtlasImageKind::TALL => {
-                if height < width {
-                    return None;
-                }
-            }
+        let rotated = width > height;
+
+        let (width, height) = if rotated {
+            (height, width)
+        } else {
+            (width, height)
         };
 
-        if max(width, height) > self.row_size {
+        if height > self.row_size {
             return None;
         };
 
-        let size = match self.image_kind {
-            AtlasImageKind::WIDE => height,
-            AtlasImageKind::TALL => width,
+        if height > 16 && height <= self.row_size / 2 {
+            return None;
         };
 
         for (row_index, usage) in self.row_usage.iter_mut().enumerate() {
-            if *usage + size <= self.width {
-                let x = match self.image_kind {
-                    AtlasImageKind::TALL => *usage,
-                    AtlasImageKind::WIDE => row_index as u32 * self.row_size,
-                };
-                let y = match self.image_kind {
-                    AtlasImageKind::TALL => row_index as u32 * self.row_size,
-                    AtlasImageKind::WIDE => *usage,
-                };
-                *usage += size;
+            if *usage + width <= self.width {
+                let x = *usage;
+                let y = row_index as u32 * self.row_size;
+                *usage += width;
                 return Some(BoundingBox {
                     atlas_id: self.id,
                     x,
                     y,
                     width,
                     height,
+                    rotated,
                 });
             }
         }
@@ -89,23 +84,24 @@ impl ImageAtlas {
     pub fn new() -> Self {
         Self {
             images: HashMap::new(),
-            atlases: vec![
-                SingleAtlas::new(0, 2048, 16, AtlasImageKind::TALL),
-                SingleAtlas::new(1, 2048, 16, AtlasImageKind::WIDE),
-                SingleAtlas::new(2, 2048, 8, AtlasImageKind::TALL),
-                SingleAtlas::new(3, 2048, 8, AtlasImageKind::WIDE),
-            ],
+            atlases: Vec::new(),
         }
     }
 
-    pub fn add_image(&mut self, id: u64, width: u32, height: u32) -> Option<BoundingBox> {
+    pub fn add_image(&mut self, id: u64, width: u32, height: u32) -> (BoundingBox, bool) {
         for atlas in self.atlases.iter_mut() {
             if let Some(bounding_box) = atlas.add_image(width, height) {
                 self.images.insert(id, bounding_box);
-                return Some(bounding_box);
+                return (bounding_box, false);
             }
         }
-        None
+        let mut new_atlas = SingleAtlas::for_image(self.atlases.len() as u32, width, height);
+        let result = new_atlas
+            .add_image(width, height)
+            .expect("Newly created atlas must accept the image");
+        self.images.insert(id, result);
+        self.atlases.push(new_atlas);
+        (result, true)
     }
 
     pub fn get_image_bounds(&self, id: &u64) -> Option<&BoundingBox> {

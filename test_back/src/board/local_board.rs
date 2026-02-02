@@ -5,7 +5,7 @@ use crate::board::common::{
 };
 
 pub trait BoardObserver {
-    fn create_texture(&mut self, data: Vec<u8>) -> u64;
+    fn create_texture(&mut self, data: Vec<u8>) -> Option<u64>;
     fn new_image(&mut self, x: f64, y: f64, texture_id: u64) -> u64;
 }
 
@@ -33,7 +33,9 @@ impl LocalBoard {
 
     pub fn load(&mut self, board: Board<u64>, observer: &mut impl BoardObserver) {
         for (texture_global_id, data) in board.textures {
-            let internal_id = observer.create_texture(data);
+            let internal_id = observer
+                .create_texture(data)
+                .expect("Texture from the server is always correct");
             let texture_id = ObjectIdentifier::Global(texture_global_id);
             self.init_texture_id(texture_id, internal_id);
         }
@@ -116,7 +118,9 @@ impl LocalBoard {
                 id: global_id,
                 data,
             } => {
-                let internal_id = observer.create_texture(data);
+                let internal_id = observer
+                    .create_texture(data)
+                    .expect("Texture from the server is always correct");
                 self.init_texture_id(ObjectIdentifier::Global(global_id), internal_id);
                 internal_id
             }
@@ -189,10 +193,10 @@ impl LocalBoard {
         y: f64,
         data: Vec<u8>,
         observer: &mut impl BoardObserver,
-    ) -> BoardAction {
+    ) -> Option<BoardAction> {
         let img_local_id = self.next_local_id();
         let img_id = ObjectIdentifier::Local(img_local_id);
-        let texture_internal_id = observer.create_texture(data.clone());
+        let texture_internal_id = observer.create_texture(data.clone())?;
         let texture_id = self
             .texture_internal_ids_reverse
             .get(&texture_internal_id)
@@ -222,11 +226,11 @@ impl LocalBoard {
                 texture: texture.get_id(),
             }),
         );
-        BoardAction::NewImage {
+        Some(BoardAction::NewImage {
             x,
             y,
             local_id: img_local_id,
             texture,
-        }
+        })
     }
 }

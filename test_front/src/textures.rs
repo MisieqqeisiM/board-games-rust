@@ -29,24 +29,27 @@ impl Textures {
         id
     }
 
-    pub fn insert_texture(&mut self, data: Vec<u8>, canvas: &mut Canvas) -> u64 {
+    pub fn insert_texture(&mut self, data: Vec<u8>, canvas: &mut Canvas) -> Option<u64> {
         if let Some(&id) = self.cache.get(&data) {
-            return id;
+            return Some(id);
         }
         let img = ImageReader::new(Cursor::new(&data))
             .with_guessed_format()
-            .unwrap()
+            .ok()?
             .decode()
-            .unwrap();
-        let img = resize_image(img, 256);
+            .ok()?;
+        let mut img = resize_image(img, 2048);
         let id = self.get_next_id();
-        self.atlas
-            .add_image(id, img.width(), img.height())
-            .inspect(|bounding_box| {
-                self.cache.insert(data, id);
-                canvas.update_atlas(img.to_rgba8().as_raw().to_vec(), *bounding_box);
-            });
-        id
+        let (bounding_box, new_atlas) = self.atlas.add_image(id, img.width(), img.height());
+        if bounding_box.rotated {
+            img = img.rotate90()
+        }
+        self.cache.insert(data, id);
+        if new_atlas {
+            canvas.create_atlas();
+        }
+        canvas.update_atlas(img.to_rgba8().as_raw().to_vec(), bounding_box);
+        Some(id)
     }
 
     pub fn get_bounds(&self, id: u64) -> BoundingBox {
