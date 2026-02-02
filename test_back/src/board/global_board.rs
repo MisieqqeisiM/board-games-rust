@@ -1,59 +1,8 @@
-use std::{collections::HashMap, hash::Hash};
+use std::collections::HashMap;
 
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum BoardObject<Id> {
-    Image { id: Id, x: f64, y: f64, texture: Id },
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash, Copy)]
-pub enum ObjectIdentifier {
-    Local(u64),
-    Global(u64),
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(bound = "Id: Serialize + DeserializeOwned + Eq + Hash")]
-pub struct Board<Id> {
-    pub objects: HashMap<Id, BoardObject<Id>>,
-    pub textures: HashMap<Id, Vec<u8>>,
-}
-
-struct Client {
-    id: u64,
-    ids_map: HashMap<u64, u64>,
-}
-
-impl Client {
-    pub fn new(id: u64) -> Self {
-        Self {
-            id,
-            ids_map: HashMap::new(),
-        }
-    }
-
-    pub fn set_global_id(&mut self, local_id: u64, global_id: u64) {
-        self.ids_map.insert(local_id, global_id);
-    }
-
-    pub fn get_global_id(&self, id: ObjectIdentifier) -> Option<u64> {
-        match id {
-            ObjectIdentifier::Local(local_id) => self.ids_map.get(&local_id).cloned(),
-            ObjectIdentifier::Global(global_id) => Some(global_id),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum BoardAction {
-    NewImage {
-        x: f64,
-        y: f64,
-        local_id: u64,
-        texture: Texture<ObjectIdentifier>,
-    },
-}
+use crate::board::common::{
+    Board, BoardAction, BoardEvent, BoardObject, Image, ObjectIdentifier, Texture,
+};
 
 pub struct GlobalBoard {
     board: Board<u64>,
@@ -137,12 +86,12 @@ impl GlobalBoard {
                 };
                 self.board.objects.insert(
                     global_id,
-                    BoardObject::Image {
+                    BoardObject::Image(Image {
                         id: global_id,
                         x,
                         y,
                         texture: texture_global.get_id(),
-                    },
+                    }),
                 );
                 for client in self.clients.values_mut() {
                     if client.id == client_id {
@@ -179,32 +128,27 @@ impl GlobalBoard {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Texture<Id> {
-    New { id: Id, data: Vec<u8> },
-    Existing { id: Id },
+struct Client {
+    id: u64,
+    ids_map: HashMap<u64, u64>,
 }
 
-impl<Id: Clone + Copy> Texture<Id> {
-    pub fn get_id(&self) -> Id {
-        match self {
-            Texture::New { id, data: _ } => *id,
-            Texture::Existing { id } => *id,
+impl Client {
+    pub fn new(id: u64) -> Self {
+        Self {
+            id,
+            ids_map: HashMap::new(),
         }
     }
-}
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum BoardEvent {
-    NewImage {
-        id: u64,
-        x: f64,
-        y: f64,
-        texture: Texture<u64>,
-    },
-    ConfirmImage {
-        local_id: u64,
-        global_id: u64,
-        texture_id: u64,
-    },
+    pub fn set_global_id(&mut self, local_id: u64, global_id: u64) {
+        self.ids_map.insert(local_id, global_id);
+    }
+
+    pub fn get_global_id(&self, id: ObjectIdentifier) -> Option<u64> {
+        match id {
+            ObjectIdentifier::Local(local_id) => self.ids_map.get(&local_id).cloned(),
+            ObjectIdentifier::Global(global_id) => Some(global_id),
+        }
+    }
 }

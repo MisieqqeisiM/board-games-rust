@@ -47,7 +47,6 @@ where
 
 mod ts {
     use wasm_bindgen::prelude::wasm_bindgen;
-    use web_sys::js_sys::Uint8Array;
 
     pub trait MouseObserver {
         fn on_move(&mut self, x: f32, y: f32);

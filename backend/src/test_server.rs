@@ -3,13 +3,15 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use axum::response::sse::Event;
 use backend_commons::client_info::{ClientData, ClientListMessage, ClientMessage};
 use test_back::{
     ToClient, ToServer,
-    board::{BoardEvent, EventSender, GlobalBoard},
+    board::{
+        common::BoardEvent,
+        global_board::{EventSender, GlobalBoard},
+    },
 };
-use tracing::info;
+use tracing::{debug, info};
 
 use crate::socket_endpoint::{Client, SocketHandler};
 
@@ -25,6 +27,7 @@ struct Clients {
 impl EventSender for Clients {
     async fn send_event(&mut self, client_id: u64, event: BoardEvent) {
         if let Some(client) = self.clients.get_mut(&client_id) {
+            debug!("Sending event to client {}: {:?}", client_id, event);
             let message = ToClient::BoardEvent(event);
             client.send(message).await;
         }

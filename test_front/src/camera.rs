@@ -1,4 +1,4 @@
-use crate::mouse::MouseCommand;
+use crate::components::mouse::MouseCommand;
 
 pub struct Camera {
     x: f64,

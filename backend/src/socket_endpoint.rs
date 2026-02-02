@@ -1,6 +1,5 @@
 use std::{
     marker::PhantomData,
-    process::Output,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -25,7 +24,7 @@ use tokio::{
     },
     time::{self, Instant},
 };
-use tracing::info;
+use tracing::debug;
 
 use crate::token::UserData;
 

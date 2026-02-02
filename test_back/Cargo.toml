@@ -6,3 +6,4 @@ edition = "2024"
 [dependencies]
 serde = {version = "1.0.219", features = ["derive"]}
 backend_commons = {path = "../backend_commons"}
+log = "0.4.27"

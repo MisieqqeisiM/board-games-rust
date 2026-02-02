@@ -67,15 +67,13 @@ export class Canvas {
     }
 
     updateAtlas(data: Uint8Array, atlas_id: number, x: number, y: number, width: number, height: number) {
-        const gl = this.element.getContext("webgl2");
-        gl.activeTexture(gl.TEXTURE0 + atlas_id);
-        gl.bindTexture(gl.TEXTURE_2D, this.atlases[atlas_id]);
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, x, y, width, height, gl.RGBA, gl.UNSIGNED_BYTE, data);
+        this.gl.activeTexture(this.gl.TEXTURE0 + atlas_id);
+        this.gl.bindTexture(this.gl.TEXTURE_2D, this.atlases[atlas_id]);
+        this.gl.texSubImage2D(this.gl.TEXTURE_2D, 0, x, y, width, height, this.gl.RGBA, this.gl.UNSIGNED_BYTE, data);
     }
 
     setTransform(x: number, y: number, scale: number) {
-        const gl = this.element.getContext("webgl2");
-        gl.uniformMatrix3fv(this.transformLocation, false, new Float32Array([
+        this.gl.uniformMatrix3fv(this.transformLocation, false, new Float32Array([
             scale, 0, 0,
             0, scale, 0,
             -x * scale, -y * scale, 1
@@ -95,10 +93,9 @@ export class Canvas {
 
 
     draw() {
-        const gl = this.element.getContext("webgl2");
-        gl.clearColor(0, 0, 0, 0);
-        gl.clear(gl.COLOR_BUFFER_BIT);
-        gl.drawArrays(gl.TRIANGLES, 0, this.vertices.size() / 5);
+        this.gl.clearColor(0, 0, 0, 0);
+        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
+        this.gl.drawArrays(this.gl.TRIANGLES, 0, this.vertices.size() / 5);
     }
 
 }
