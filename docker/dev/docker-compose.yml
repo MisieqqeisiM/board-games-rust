@@ -19,3 +19,4 @@ services:
       - /usr/src/app/menu_front/dist
       - /usr/src/app/test_front/js
       - /usr/src/app/test_front/dist
+      - ../../data:/usr/src/app/backend/data

@@ -1,4 +1,5 @@
 pub mod board;
+pub mod store;
 
 use backend_commons::client_info::ClientListMessage;
 use serde::{Deserialize, Serialize};

@@ -1,5 +1,6 @@
 use std::{
     collections::HashMap,
+    path::PathBuf,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -10,14 +11,25 @@ use test_back::{
         common::BoardEvent,
         global_board::{EventSender, GlobalBoard},
     },
+    store::{
+        StoringObserver,
+        serialization::{BoardLoader, CURRENT_VERSION},
+    },
 };
 use tracing::{debug, info};
 
-use crate::socket_endpoint::{Client, SocketHandler};
+use crate::{
+    event_store::EventStore,
+    socket_endpoint::{Client, SocketHandler},
+};
+
+const LOG_FILE_SIZE_LIMIT: u64 = 1024;
 
 pub struct Test {
     clients: Clients,
     board: GlobalBoard,
+    name: String,
+    observer: StoringObserver<EventStore>,
 }
 
 struct Clients {
@@ -59,10 +71,21 @@ impl Clients {
 }
 
 impl Test {
-    pub fn new() -> Self {
+    pub async fn new(name: String) -> Self {
+        let path = PathBuf::from("data").join(&name);
+        let mut board_loader = BoardLoader::new();
+        let store = EventStore::open(&path, CURRENT_VERSION, &mut board_loader)
+            .await
+            .unwrap();
+
+        let board = board_loader.get_board();
+        let board = GlobalBoard::from_board(board);
+
         Self {
             clients: Clients::new(),
-            board: GlobalBoard::new(),
+            board,
+            name,
+            observer: StoringObserver::new(store),
         }
     }
 
@@ -95,7 +118,9 @@ impl SocketHandler<ToClient, ToServer, ()> for Test {
     async fn on_message(&mut self, client_id: u64, message: ToServer) {
         match message {
             ToServer::BoardAction(action) => {
-                self.board.apply(client_id, action, &mut self.clients).await;
+                self.board
+                    .apply(client_id, action, &mut self.clients, &mut self.observer)
+                    .await;
             }
         }
     }
@@ -110,6 +135,13 @@ impl SocketHandler<ToClient, ToServer, ()> for Test {
 
     async fn tick(&mut self) {
         info!("tick!");
+        if self.observer.get_store_mut().get_current_log_size() > LOG_FILE_SIZE_LIMIT {
+            let board = self.board.get_state();
+            self.observer.snapshot(board).await;
+        } else {
+            self.observer.get_store_mut().flush().await.unwrap();
+        }
+        if self.clients.clients.is_empty() {}
         for client in self.clients.values_mut() {
             client.ping().await;
         }

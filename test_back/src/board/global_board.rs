@@ -15,15 +15,34 @@ pub trait EventSender {
     fn send_event(&mut self, client_id: u64, event: BoardEvent) -> impl Future<Output = ()>;
 }
 
+pub trait BoardObserver {
+    fn new_image(
+        &mut self,
+        id: u64,
+        x: f64,
+        y: f64,
+        texture: Texture<u64>,
+    ) -> impl Future<Output = ()>;
+}
+
 impl GlobalBoard {
-    pub fn new() -> Self {
+    pub fn from_board(board: Board<u64>) -> Self {
+        let rev_textures = board
+            .textures
+            .iter()
+            .map(|(id, data)| (data.clone(), *id))
+            .collect();
+        let global_id_counter = board
+            .objects
+            .keys()
+            .chain(board.textures.keys())
+            .max()
+            .cloned()
+            .unwrap_or(0);
         Self {
-            board: Board {
-                objects: HashMap::new(),
-                textures: HashMap::new(),
-            },
-            rev_textures: HashMap::new(),
-            global_id_counter: 0,
+            board,
+            rev_textures,
+            global_id_counter,
             clients: HashMap::new(),
         }
     }
@@ -72,6 +91,7 @@ impl GlobalBoard {
         client_id: u64,
         board_action: BoardAction,
         event_sender: &mut impl EventSender,
+        observer: &mut impl BoardObserver,
     ) {
         match board_action {
             BoardAction::NewImage {
@@ -93,6 +113,11 @@ impl GlobalBoard {
                         texture: texture_global.get_id(),
                     }),
                 );
+
+                observer
+                    .new_image(global_id, x, y, texture_global.clone())
+                    .await;
+
                 for client in self.clients.values_mut() {
                     if client.id == client_id {
                         client.set_global_id(local_id, global_id);

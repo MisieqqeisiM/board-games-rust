@@ -1,6 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
+    collections::HashMap,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -8,10 +7,9 @@ use menu_back::{
     ToClient, ToServer,
     server_list::{ServerList, ServerListEvent},
 };
-use tokio::sync::Mutex;
 use tracing::info;
 
-use crate::socket_endpoint::{Client, SocketEndpoint, SocketHandler};
+use crate::socket_endpoint::{Client, SocketHandler};
 
 pub enum MenuMessage {
     ServerCreated(String),

@@ -1,4 +1,5 @@
 mod auth;
+mod event_store;
 mod menu_server;
 mod socket_endpoint;
 mod test_server;
@@ -55,11 +56,17 @@ async fn test_ws(
 ) -> Response {
     let mut rooms = state.test_rooms.lock().await;
     let menu = state.menu.lock().await;
-    let room = rooms.entry(room_id.clone()).or_insert_with(|| {
-        menu.send_internal_message(MenuMessage::ServerCreated(room_id));
-        SocketEndpoint::new(Test::new())
-    });
-    room.handler(ws, user_data)
+    if rooms.contains_key(&room_id) {
+        let room = rooms.get(&room_id).unwrap();
+        room.handler(ws, user_data)
+    } else {
+        let test = Test::new(room_id.clone()).await;
+        let room = SocketEndpoint::new(test);
+        let handler = room.handler(ws, user_data);
+        rooms.insert(room_id.clone(), room);
+        menu.send_internal_message(MenuMessage::ServerCreated(room_id.clone()));
+        handler
+    }
 }
 
 async fn auth_middleware(_user_dat: UserData, request: Request, next: Next) -> Response {
