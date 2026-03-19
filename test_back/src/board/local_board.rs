@@ -1,12 +1,14 @@
 use std::collections::HashMap;
 
 use crate::board::common::{
-    Board, BoardAction, BoardEvent, BoardObject, Image, ObjectIdentifier, Texture,
+    Board, BoardAction, BoardEvent, BoardObject, Color, Image, Line, ObjectIdentifier, Point,
+    Texture,
 };
 
 pub trait BoardObserver {
     fn create_texture(&mut self, data: Vec<u8>) -> Option<u64>;
     fn new_image(&mut self, x: f64, y: f64, texture_id: u64) -> u64;
+    fn new_line(&mut self, points: Vec<Point>, width: f64, color: Color) -> u64;
 }
 
 pub struct LocalBoard {
@@ -14,6 +16,7 @@ pub struct LocalBoard {
     texture_internal_ids: HashMap<ObjectIdentifier, u64>,
     texture_internal_ids_reverse: HashMap<u64, ObjectIdentifier>,
     image_internal_ids: HashMap<ObjectIdentifier, u64>,
+    line_internal_ids: HashMap<ObjectIdentifier, u64>,
     local_id_counter: u64,
 }
 
@@ -26,6 +29,7 @@ impl LocalBoard {
             },
             texture_internal_ids: HashMap::new(),
             image_internal_ids: HashMap::new(),
+            line_internal_ids: HashMap::new(),
             local_id_counter: 0,
             texture_internal_ids_reverse: HashMap::new(),
         }
@@ -69,7 +73,25 @@ impl LocalBoard {
                         }),
                     );
                 }
-                BoardObject::Line => todo!(),
+                BoardObject::Line(Line {
+                    id,
+                    points,
+                    width,
+                    color,
+                }) => {
+                    let line_id = ObjectIdentifier::Global(id);
+                    let line_internal_id = observer.new_line(points.clone(), width, color);
+
+                    self.board.objects.insert(
+                        line_id,
+                        BoardObject::Line(Line {
+                            id: line_id,
+                            points,
+                            width,
+                            color,
+                        }),
+                    );
+                }
             }
         }
     }
@@ -84,6 +106,18 @@ impl LocalBoard {
     }
 
     fn update_image_id(&mut self, old_id: ObjectIdentifier, new_id: ObjectIdentifier) {
+        let internal_id = self
+            .image_internal_ids
+            .remove(&old_id)
+            .expect("Old image ID must exist");
+
+        self.image_internal_ids.insert(new_id, internal_id);
+    }
+
+    fn init_line_id(&mut self, id: ObjectIdentifier, internal_id: u64) {
+        self.line_internal_ids.insert(id, internal_id);
+    }
+    fn update_line_id(&mut self, old_id: ObjectIdentifier, new_id: ObjectIdentifier) {
         let internal_id = self
             .image_internal_ids
             .remove(&old_id)
@@ -184,6 +218,43 @@ impl LocalBoard {
                     }),
                 );
             }
+            BoardEvent::NewLine {
+                id,
+                points,
+                width,
+                color,
+            } => {
+                let line_id = ObjectIdentifier::Global(id);
+                let line_internal_id = observer.new_line(points.clone(), width, color);
+                self.init_line_id(line_id, line_internal_id);
+                self.board.objects.insert(
+                    line_id,
+                    BoardObject::Line(Line {
+                        id: line_id,
+                        points,
+                        width,
+                        color,
+                    }),
+                );
+            }
+            BoardEvent::ConfirmLine {
+                local_id,
+                global_id,
+            } => {
+                let line_old_id = ObjectIdentifier::Local(local_id);
+                let line_new_id = ObjectIdentifier::Global(global_id);
+
+                let line = self
+                    .board
+                    .objects
+                    .remove(&line_old_id)
+                    .expect("Object must exist");
+                let BoardObject::Line(line) = line else {
+                    panic!("Object must be a line")
+                };
+
+                self.update_line_id(line_old_id, line_new_id);
+            }
         }
     }
 
@@ -231,6 +302,35 @@ impl LocalBoard {
             y,
             local_id: img_local_id,
             texture,
+        })
+    }
+
+    pub fn new_line(
+        &mut self,
+        points: Vec<Point>,
+        width: f64,
+        observer: &mut impl BoardObserver,
+        color: Color,
+    ) -> Option<BoardAction> {
+        let line_local_id = self.next_local_id();
+        let line_id = ObjectIdentifier::Local(line_local_id);
+        let line_internal_id = observer.new_line(points.clone(), width, color);
+
+        self.board.objects.insert(
+            line_id,
+            BoardObject::Line(Line {
+                id: line_id,
+                points: points.clone(),
+                width,
+                color,
+            }),
+        );
+
+        Some(BoardAction::NewLine {
+            local_id: line_local_id,
+            points,
+            width,
+            color,
         })
     }
 }

@@ -3,7 +3,7 @@ mod components;
 mod image_atlas;
 mod textures;
 
-use std::{collections::HashMap, vec};
+use std::{collections::HashMap, f64::consts::FRAC_PI_2, vec};
 
 use frontend_commons::{
     client_info::ClientInfo,
@@ -13,7 +13,10 @@ use frontend_commons::{
 use log::{Level, debug, info};
 use test_back::{
     ToClient, ToServer,
-    board::local_board::{BoardObserver, LocalBoard},
+    board::{
+        common::{Color, Point},
+        local_board::{BoardObserver, LocalBoard},
+    },
 };
 
 use crate::{
@@ -26,6 +29,8 @@ use crate::{
     image_atlas::BoundingBox,
     textures::Textures,
 };
+
+use nalgebra::{Point2, Rotation2};
 
 struct Graphics {
     canvas: Canvas,
@@ -57,6 +62,12 @@ impl BoardObserver for Graphics {
             bounding_box.atlas_id / 8,
             get_vertices(&bounding_box, x as f32, y as f32, width, height),
         );
+        self.next_local_id()
+    }
+
+    fn new_line(&mut self, points: Vec<Point>, width: f64, color: Color) -> u64 {
+        self.canvas
+            .push_line(get_triangle_strip(points, width, color));
         self.next_local_id()
     }
 }
@@ -112,6 +123,54 @@ fn get_vertices(
     [v1.clone(), v2, v3.clone(), v1, v3, v4].concat()
 }
 
+fn get_triangle_strip(points: Vec<Point>, width: f64, color: Color) -> Vec<f32> {
+    let [r, g, b, a] = color;
+    let points: Vec<Point2<f64>> = points.iter().map(|p| Point2::new(p.x, p.y)).collect();
+
+    let mut result = vec![];
+
+    result.push(points[0]);
+    result.push(points[0]);
+    for i in 0..points.len() - 1 {
+        let from = points[i];
+        let to = points[i + 1];
+        let from = Point2::new(from.x, from.y);
+        let to = Point2::new(to.x, to.y);
+
+        result.extend(rectangle(from, to, width))
+    }
+    result.push(points[points.len() - 1]);
+    result.push(points[points.len() - 1]);
+
+    let mut result: Vec<f32> = result
+        .into_iter()
+        .flat_map(|p| {
+            vec![
+                p.x as f32,
+                p.y as f32,
+                r as f32 / 255.0,
+                g as f32 / 255.0,
+                b as f32 / 255.0,
+                a as f32 / 255.0,
+            ]
+        })
+        .collect();
+    let len = result.len();
+    result
+}
+
+fn rectangle(from: Point2<f64>, to: Point2<f64>, width: f64) -> Vec<Point2<f64>> {
+    let dir = (to - from).normalize();
+    let perp = Rotation2::new(FRAC_PI_2) * dir;
+
+    let p1 = from + perp * width;
+    let p2 = from - perp * width;
+    let p3 = to + perp * width;
+    let p4 = to - perp * width;
+
+    vec![p1, p2, p3, p4]
+}
+
 impl Command<TestState> for TestCommand {
     fn apply(self, state: &mut TestState) {
         match self {
@@ -121,6 +180,7 @@ impl Command<TestState> for TestCommand {
                 if let Some(action) = action {
                     state.socket.send(ToServer::BoardAction(action));
                 };
+
                 state.graphics.canvas.draw();
             }
             TestCommand::Mouse(mouse_command) => {

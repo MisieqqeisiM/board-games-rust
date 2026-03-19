@@ -1,3 +1,4 @@
+use crate::board::common::{Color, Point};
 use backend_commons::store::Store;
 
 use crate::{
@@ -47,6 +48,16 @@ impl<S: Store> BoardObserver for StoringObserver<S> {
             }
         };
         let event = EventV1::NewImage { id, x, y, texture };
+        self.store.apply_event(event).await.unwrap();
+    }
+
+    async fn new_line(&mut self, id: u64, points: Vec<Point>, width: f64, color: Color) {
+        let event = EventV1::NewLine {
+            id,
+            points,
+            width,
+            color,
+        };
         self.store.apply_event(event).await.unwrap();
     }
 }
