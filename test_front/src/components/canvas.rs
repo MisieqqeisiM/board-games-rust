@@ -37,6 +37,10 @@ impl Canvas {
     pub fn create_atlas(&mut self) {
         self.canvas.createAtlas();
     }
+
+    pub fn push_line(&mut self, data: Vec<f32>) {
+        self.canvas.pushLine(data);
+    }
 }
 
 mod ts {
@@ -71,5 +75,8 @@ mod ts {
 
         #[wasm_bindgen(method)]
         pub fn push(this: &Canvas, group: u32, data: Vec<f32>);
+
+        #[wasm_bindgen(method)]
+        pub fn pushLine(this: &Canvas, data: Vec<f32>);
     }
 }

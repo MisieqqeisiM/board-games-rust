@@ -10,6 +10,12 @@ pub enum BoardAction {
         local_id: u64,
         texture: Texture<ObjectIdentifier>,
     },
+    NewLine {
+        local_id: u64,
+        points: Vec<Point>,
+        width: f64,
+        color: Color,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -25,13 +31,22 @@ pub enum BoardEvent {
         global_id: u64,
         texture_id: u64,
     },
+    NewLine {
+        id: u64,
+        points: Vec<Point>,
+        width: f64,
+        color: Color,
+    },
+    ConfirmLine {
+        local_id: u64,
+        global_id: u64,
+    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum BoardObject<Id> {
     Image(Image<Id>),
-    // Todo: implement lines
-    Line,
+    Line(Line<Id>),
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -40,6 +55,22 @@ pub struct Image<Id> {
     pub x: f64,
     pub y: f64,
     pub texture: Id,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Line<Id> {
+    pub id: Id,
+    pub points: Vec<Point>,
+    pub width: f64,
+    pub color: Color,
+}
+
+pub type Color = [u8; 4];
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Point {
+    pub x: f64,
+    pub y: f64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash, Copy)]

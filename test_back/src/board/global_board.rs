@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use crate::board::common::{
-    Board, BoardAction, BoardEvent, BoardObject, Image, ObjectIdentifier, Texture,
+    Board, BoardAction, BoardEvent, BoardObject, Color, Image, Line, ObjectIdentifier, Point,
+    Texture,
 };
 
 pub struct GlobalBoard {
@@ -22,6 +23,14 @@ pub trait BoardObserver {
         x: f64,
         y: f64,
         texture: Texture<u64>,
+    ) -> impl Future<Output = ()>;
+
+    fn new_line(
+        &mut self,
+        id: u64,
+        points: Vec<Point>,
+        width: f64,
+        color: Color,
     ) -> impl Future<Output = ()>;
 }
 
@@ -143,6 +152,54 @@ impl GlobalBoard {
                                     x,
                                     y,
                                     texture: texture_global.clone(),
+                                },
+                            )
+                            .await;
+                    }
+                }
+            }
+            BoardAction::NewLine {
+                local_id,
+                points,
+                width,
+                color,
+            } => {
+                let global_id = self.next_global_id();
+                self.board.objects.insert(
+                    global_id,
+                    BoardObject::Line(Line {
+                        id: global_id,
+                        points: points.clone(),
+                        width,
+                        color,
+                    }),
+                );
+
+                observer
+                    .new_line(global_id, points.clone(), width, color)
+                    .await;
+
+                for client in self.clients.values_mut() {
+                    if client.id == client_id {
+                        client.set_global_id(local_id, global_id);
+                        event_sender
+                            .send_event(
+                                client_id,
+                                BoardEvent::ConfirmLine {
+                                    local_id,
+                                    global_id,
+                                },
+                            )
+                            .await;
+                    } else {
+                        event_sender
+                            .send_event(
+                                client.id,
+                                BoardEvent::NewLine {
+                                    id: global_id,
+                                    points: points.clone(),
+                                    width,
+                                    color,
                                 },
                             )
                             .await;

@@ -65,7 +65,11 @@ pub fn convert_board(board: crate::board::common::Board<u64>) -> BoardLatest {
                             y: image.y,
                             texture_id: image.texture,
                         },
-                        board::common::BoardObject::Line => store::v1::Object::Line,
+                        board::common::BoardObject::Line(line) => store::v1::Object::Line {
+                            points: line.points,
+                            width: line.width,
+                            color: line.color,
+                        },
                     },
                 )
             })
@@ -102,7 +106,16 @@ impl BoardLoader {
                                 texture: texture_id,
                             })
                         }
-                        super::v1::Object::Line => todo!(),
+                        super::v1::Object::Line {
+                            points,
+                            width,
+                            color,
+                        } => board::common::BoardObject::Line(board::common::Line {
+                            id,
+                            points,
+                            width,
+                            color,
+                        }),
                     },
                 )
             })

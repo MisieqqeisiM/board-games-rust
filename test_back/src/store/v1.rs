@@ -2,12 +2,22 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
+use crate::board::common::{Color, Point};
+
 // DO NOT CHANGE AFTER RELEASE
 
 #[derive(Serialize, Deserialize, Debug)]
 pub enum Object {
-    Image { x: f64, y: f64, texture_id: u64 },
-    Line,
+    Image {
+        x: f64,
+        y: f64,
+        texture_id: u64,
+    },
+    Line {
+        points: Vec<Point>,
+        width: f64,
+        color: Color,
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -30,6 +40,12 @@ pub enum EventV1 {
         y: f64,
         texture: Texture,
     },
+    NewLine {
+        id: u64,
+        points: Vec<Point>,
+        width: f64,
+        color: Color,
+    },
 }
 
 impl BoardV1 {
@@ -51,6 +67,21 @@ impl BoardV1 {
                     Texture::Existing { id: tex_id } => tex_id,
                 };
                 self.objects.insert(id, Object::Image { x, y, texture_id });
+            }
+            EventV1::NewLine {
+                id,
+                points,
+                width,
+                color,
+            } => {
+                self.objects.insert(
+                    id,
+                    Object::Line {
+                        points: points,
+                        width: width,
+                        color: color,
+                    },
+                );
             }
         }
     }
